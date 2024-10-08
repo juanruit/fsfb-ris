@@ -1,0 +1,34 @@
+BROKER SCHEMA co.com.fsfb.adapter
+
+DECLARE NAME_SERVICE CONSTANT CHARACTER 'RIS.ORMOUT';
+DECLARE NAME_COMPONENT CONSTANT CHARACTER 'RISORMOUTAdapterFcdTCP';
+DECLARE TYPE_LOG_1 CONSTANT CHARACTER '1';
+
+CREATE COMPUTE MODULE Adapter_REQ_NormalizeMessage
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		--Setear set de caracteres
+		SET OutputRoot.Properties.CodedCharSetId 	= '819';
+		SET OutputRoot.Properties.Encoding 			= '1208';
+		
+		-- Construcción de cabecera MQMD
+		CREATE FIELD OutputRoot.MQMD;
+		CREATE FIELD OutputRoot.MQRFH2;
+		
+		-- Declare RQRFH2
+		DECLARE refMQRFH2 REFERENCE TO OutputRoot.MQRFH2;
+		
+		-- Enviar carga util
+		SET OutputRoot.BLOB = InputRoot.BLOB;
+		
+		--Retirar MLLPBytes al mensaje de entrada BLOB
+		CALL co.com.commons.procedures.TrimMLLPBytes(OutputRoot.BLOB.BLOB);
+				
+		-- Crear identidad del servicio en cabecera MQRFH2
+		CALL co.com.commons.procedures.createIdentityService(refMQRFH2, NAME_SERVICE, NAME_COMPONENT, TYPE_LOG_1, UUIDASCHAR, 'localhost');
+		PROPAGATE TO TERMINAL 'out1' DELETE NONE;
+		
+		RETURN TRUE;
+	END;
+END MODULE;
+	

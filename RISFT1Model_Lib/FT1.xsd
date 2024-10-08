@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://sisips/admsalud" xmlns:NS1="http://sisips/admsalud">
+
+	<xsd:element name="ORM_IN_FT1">
+        <xsd:annotation>
+      <xsd:appinfo source="WMQI_APPINFO">
+        <MRMessage messageDefinition="/0/ORM_IN_FT1;XSDElementDeclaration=3$MRObject"/>
+      </xsd:appinfo>
+    </xsd:annotation>
+        <xsd:complexType>
+      <xsd:sequence>
+      	<xsd:element minOccurs="0" name="MSH_DFT_ID" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="PID_ID" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="PID_ID2" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="PID_03_INFO" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="PID_05_FNAME" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="FT1_18_P_TYPE" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="PV1_19_VISITNR" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="FT1_26_ACC_NUMBER" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="FT1_03_BATCH_ID" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="FT1_04_PROCEDURE_DATE" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="OBR_32_RAD_ID" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="OBR_04_EXAM_CODE" type="xsd:string"/>
+      	<xsd:element minOccurs="0" name="OBR_04_EXAM_DESC" type="xsd:string"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>

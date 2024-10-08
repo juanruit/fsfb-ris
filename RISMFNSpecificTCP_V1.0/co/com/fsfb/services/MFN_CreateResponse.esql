@@ -1,0 +1,44 @@
+BROKER SCHEMA co.com.fsfb.services
+
+
+DECLARE TYPE_LOG_3 CONSTANT CHARACTER '3';
+
+
+CREATE COMPUTE MODULE MFN_CreateResponse
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Copiar cabeceras
+		SET OutputRoot.MQMD 		= InputRoot.MQMD;
+		SET OutputRoot.MQRFH2.usr 	= InputRoot.MQRFH2.usr;
+		
+		-- Crear referencia
+		DECLARE refMQRFH2 REFERENCE TO OutputRoot.MQRFH2;
+		
+		-- Validar mensaje de entrada
+		DECLARE refInp REFERENCE TO InputRoot;
+		MOVE refInp LASTCHILD;
+		
+		-- Crear mensaje de salida
+		/* --------------------------------------------------------- */
+		CREATE FIELD OutputRoot.JSON.Data;
+		DECLARE refOut REFERENCE TO  OutputRoot.JSON.Data;
+		
+		SET refOut.status.dateTransaction		= CURRENT_TIMESTAMP;
+		
+		DECLARE tmp CHARACTER FIELDNAME(refInp.*:MSA.*:"MSA.1.AcknowledgementCode");
+		
+		IF FIELDVALUE(refInp.*:MSA.*:"MSA.1.AcknowledgementCode") = 'AA' THEN
+			SET refOut.status.code					= 0;
+			SET refOut.status.desc					= 'Transación Exitosa' || ' - ' || refMQRFH2.usr.service.globalID;	
+		ELSE
+			SET refOut.status.code					= 506;
+			SET refOut.status.desc					= 'Transación No Exitosa';
+			
+			SET refOut.status.additionalStatus.code	= refInp.*:MSA.*:"MSA.1.AcknowledgementCode";
+			SET refOut.status.additionalStatus.desc	= refInp.*:MSA.*:"MSA.3.TextMessage";
+		END IF;
+		
+		RETURN TRUE;
+	END;
+END MODULE;
+	

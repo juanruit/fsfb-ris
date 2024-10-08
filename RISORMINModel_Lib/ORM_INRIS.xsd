@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://sisips/admsalud" xmlns:NS1="http://sisips/admsalud">
+<xsd:element name="ORM_INRIS">
+        <xsd:annotation>
+      <xsd:appinfo source="WMQI_APPINFO">
+        <MRMessage messageDefinition="/0/AGFA_MFN;XSDElementDeclaration$MRObject"/>
+      </xsd:appinfo>
+    </xsd:annotation>
+        <xsd:complexType>
+			<xsd:sequence>
+				<xsd:element minOccurs="0" name="MSH_10_ID" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="MSH_STATUS" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="EVN_RECDATE" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="PID_02_ID" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="PID_03_ID2" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="PID_05_LNAMEF" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="PID_05_LNAMEM" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="PID_05_FNAME" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="PID_13_PHONE" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="PV1_18_PTYPE" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="ORC_25_STATUS" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="ORC_04_QP_REQ_ID" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="ORC_02_QP_EXAM_ID" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="ORC_USER_ID" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="OBR_04_EXAM_CODE" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="OBR_04_EXAM_DESC" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="OBR_13_CLIN_INFO" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="OBR_31_STUDYREASON" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="PV1_VISIT_NR" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="ORC_07_PRIORITY" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="ORC_12_REQ_DOC" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="ORC_13_REQ_SERV" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="OBR_06_REQ_DATE" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="ORC_07_DATE_INIT" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="ORC_07_DATE_FIN" type="xsd:string"/>
+		      	<xsd:element minOccurs="0" name="XCODIGOCENTROATEN" type="xsd:string"/>
+				<xsd:element minOccurs="0" name="ORC_04_QP_REQ_IDADT" type="xsd:string"/>
+		        <xsd:element minOccurs="0" name="APLDESTINO" type="xsd:string"/>
+            </xsd:sequence>
+		</xsd:complexType>
+</xsd:element>
+</xsd:schema>

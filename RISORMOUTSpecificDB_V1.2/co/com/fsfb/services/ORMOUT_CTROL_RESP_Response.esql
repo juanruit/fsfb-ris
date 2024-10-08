@@ -1,0 +1,16 @@
+BROKER SCHEMA co.com.fsfb.services
+
+
+CREATE COMPUTE MODULE ORMOUT_CTROL_RESP_Response
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Recuperar arbol completo y respuesta de ORMOUT 
+		DECLARE refMessage REFERENCE TO InputRoot.ComIbmAggregateReplyBody;
+		
+		SET OutputRoot.MQMD 	= refMessage.AggReq_CtrolMessage.MQMD;
+		SET OutputRoot.MQRFH2 	= refMessage.AggReq_RIS.MQRFH2;
+		SET OutputRoot.BLOB 	= refMessage.AggReq_RIS.BLOB;
+		
+		RETURN TRUE;
+	END;
+END MODULE;

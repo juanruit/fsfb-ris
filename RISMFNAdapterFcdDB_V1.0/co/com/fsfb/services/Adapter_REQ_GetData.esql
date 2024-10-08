@@ -1,0 +1,51 @@
+BROKER SCHEMA co.com.fsfb.services
+
+
+DECLARE NAME_SERVICE  CONSTANT	CHARACTER 'RIS.MFN';
+DECLARE NAME_COMPONENT CONSTANT CHARACTER 'RIS_MFN_Adapter';
+DECLARE TYPE_LOG_1 CONSTANT 	CHARACTER '1'; 
+
+CREATE COMPUTE MODULE Adapter_REQ_GetData
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- setear set de caracteres
+		SET OutputRoot.Properties.CodedCharSetId 	= '819';
+		SET OutputRoot.Properties.Encoding 			= '1208';
+		
+		-- construcción de cabecera MQMD
+		CREATE FIELD OutputRoot.MQMD;
+		CREATE FIELD OutputRoot.MQRFH2;
+		
+		DECLARE refMQRFH2 REFERENCE TO OutputRoot.MQRFH2;
+		
+		-- Genera consulta SQL
+		DECLARE sql CHARACTER 'SELECT AGFA_MFN.*,
+			AGFA_MFN.MSH_10_MESS_ID AS Key
+		    FROM admsalud.AGFA_MFN
+			WHERE AGFA_MFN.MFN_01_STATUS = ?
+            and rownum < ?';
+		
+		DECLARE data ROW;
+		SET data.results = PASSTHRU(sql,'N',20);
+		
+		FOR refData AS data.results[]  DO
+			
+			-- Crear identidad del servicio en cabecera MQRFH2
+			CALL co.com.commons.procedures.createIdentityService(refMQRFH2, NAME_SERVICE, NAME_COMPONENT, TYPE_LOG_1, UUIDASCHAR, 'localhost');
+			
+			-- Poner identificador de Base de datos
+			SET refMQRFH2.usr.service.globalID = CAST(refData.MSH_10_MESS_ID AS CHARACTER);
+			
+			-- construcción del mensaje FSFB
+			CREATE FIELD OutputRoot.XMLNSC.FSFB;
+			DECLARE refOut REFERENCE TO OutputRoot.XMLNSC.FSFB;
+			
+			-- copiar mensaje consultado
+			SET refOut = refData;
+			
+			-- propagar mensaje
+			PROPAGATE TO TERMINAL 'out' DELETE NONE;	
+		END FOR;
+		RETURN FALSE;
+	END;
+END MODULE;

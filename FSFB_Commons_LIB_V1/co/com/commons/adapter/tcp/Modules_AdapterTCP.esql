@@ -1,0 +1,113 @@
+BROKER SCHEMA co.com.commons.adapter.tcp
+
+CREATE COMPUTE MODULE Modules_ResponseTCP
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE LeadingMLLPBytes CHARACTER '0b';
+		DECLARE TrailingMLLPBytes CHARACTER '0d0d';
+		
+		/******************************************************/
+		-- Declarar referencias
+		/******************************************************/
+		DECLARE refEnv REFERENCE TO Environment;
+		
+		/******************************************************/
+		-- Copiar identificadores de mensaje
+		/******************************************************/
+		SET OutputRoot.MQMD.MsgId 		= CAST(refEnv.Variables.headers.MQMD.MsgId AS BLOB);
+		SET OutputRoot.MQMD.CorrelId 	= CAST(refEnv.Variables.headers.MQMD.MsgId AS BLOB);
+		SET OutputRoot.MQMD.ReplyToQ 	= TRIM(refEnv.Variables.headers.MQMD.ReplyToQ);
+		SET OutputRoot.MQRFH2 			= refEnv.Variables.headers.MQRFH2;
+		
+		--Copiar mensaje de respuesta de backend.
+		DECLARE msgTemp CHARACTER CAST(InputRoot.BLOB.BLOB AS BLOB CCSID 819);
+		DECLARE posInit INTEGER POSITION(LeadingMLLPBytes in msgTemp);
+		DECLARE posEnd INTEGER POSITION(TrailingMLLPBytes in msgTemp);
+		
+		SET OutputRoot.BLOB.BLOB = CAST(SUBSTRING(msgTemp FROM (posInit+2) FOR (LENGTH(msgTemp)-posInit-2)) AS BLOB);
+		
+		RETURN TRUE;
+	END;
+END MODULE;
+
+
+CREATE COMPUTE MODULE Modules_RequestTCP
+	DECLARE LeadingMLLPBytes EXTERNAL CHARACTER '0B';
+	DECLARE TrailingMLLPBytes EXTERNAL CHARACTER '1C0D';
+	DECLARE AddLeadingMLLPBytes EXTERNAL BOOLEAN TRUE;
+	DECLARE AddTrailingMLLPBytes EXTERNAL BOOLEAN TRUE;
+	
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		/******************************************************/
+		-- Copiar cabeceras de mensaje
+		/******************************************************/
+		SET OutputRoot.MQMD 		= InputRoot.MQMD;
+		SET OutputRoot.MQRFH2 		= InputRoot.MQRFH2;
+		SET OutputRoot.BLOB			= InputRoot.BLOB;
+		
+		/******************************************************/
+		-- Declarar referencias
+		/******************************************************/
+		DECLARE refEnv REFERENCE TO Environment;
+		DECLARE refMQRFH2 REFERENCE TO OutputRoot.MQRFH2;
+		DECLARE refInpRoot REFERENCE TO OutputRoot;
+		
+		/******************************************************/
+		-- Copiar cabeceras para responder
+		/******************************************************/
+		SET refEnv.Variables.headers.MQMD 	= InputRoot.MQMD;
+		SET refEnv.Variables.headers.MQRFH2 = InputRoot.MQRFH2;
+		
+		DECLARE refInputBlob REFERENCE TO OutputRoot.BLOB.BLOB;
+		
+		DECLARE LeadingMLLPBLOB BLOB CAST ( LeadingMLLPBytes AS BLOB );
+		DECLARE TrailingMLLPBLOB BLOB CAST ( TrailingMLLPBytes AS BLOB );
+		
+		-- If AddLeadingMLLPBytes is enabled then add LeadingMLLPBytes		
+		IF ( AddLeadingMLLPBytes ) THEN
+			-- Convert LeadingMLLPBytes to its BLOB format
+			DECLARE LeadingMLLPBLOB BLOB CAST ( LeadingMLLPBytes AS BLOB );
+			-- Checking whether the message has Leading MLLP Bytes
+			-- If yes then propagate the message to 'Out' terminal, unchanged
+			DECLARE LeadingPosition INTEGER;
+			SET	LeadingPosition = POSITION ( LeadingMLLPBLOB IN refInputBlob ); 
+			
+			IF ( LeadingPosition <> 1 ) THEN
+		        -- Message does not contain LeadingMLLPBytes hence adding the same
+				SET OutputRoot.BLOB.BLOB = LeadingMLLPBLOB || OutputRoot.BLOB.BLOB;
+	        END IF;
+	    END IF;
+		
+		-- If AddTrailingMLLPBytes is enabled then add TrailingMLLPBytes	
+		IF ( AddTrailingMLLPBytes ) THEN
+			-- Convert TrailingMLLPBytes to its BLOB format
+			DECLARE TrailingMLLPBLOB BLOB CAST ( TrailingMLLPBytes AS BLOB );
+			-- Checking whether the message has Trailing MLLP Bytes
+			-- If yes then propagate the message to 'Out' terminal, unchanged
+			DECLARE TrailingPosition INTEGER POSITION ( TrailingMLLPBLOB IN refInputBlob );
+			DECLARE TrailingBytesLength INTEGER LENGTH ( TrailingMLLPBLOB );
+			DECLARE MessageLength INTEGER LENGTH ( refInputBlob );
+			DECLARE ActualPosition INTEGER ( MessageLength - TrailingBytesLength ) + 1;
+						
+			IF ( TrailingPosition <> ActualPosition ) THEN
+		        -- Message does not contain TrailingMLLPBytes hence adding the same
+				SET OutputRoot.BLOB.BLOB =  OutputRoot.BLOB.BLOB || TrailingMLLPBLOB;
+	        END IF;
+		END IF;
+		
+		RETURN TRUE;
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE Modules_CatchAdapterTCP
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET OutputRoot.MQMD 	= InputRoot.MQMD;
+		SET OutputRoot.MQRFH2 	= InputRoot.MQRFH2;
+		
+		DECLARE msgResp CHARACTER '4D53487C5E7E5C267C7C4C41427C4849537C7C32303234303132353131353832343735302D303530307C7C41434B7C3130313733397C207C322E340D0A4D53417C41457C3131313131313131317C4572726F7220656E20656E76C3AD6F206465206D656E73616A652061206261636B656E642E';
+		SET OutputRoot.BLOB.BLOB = CAST(msgResp AS BLOB);
+		RETURN TRUE;
+	END;
+END MODULE;

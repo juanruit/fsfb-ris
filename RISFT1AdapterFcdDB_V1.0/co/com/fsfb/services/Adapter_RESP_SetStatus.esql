@@ -1,0 +1,34 @@
+BROKER SCHEMA co.com.fsfb.services
+
+CREATE COMPUTE MODULE Adapter_RESP_SetStatus
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Copiar mensaje completo
+		SET OutputRoot 	= InputRoot;
+		
+		-- Crear referencia
+		DECLARE refMQRFH2 REFERENCE TO OutputRoot.MQRFH2;
+		
+		DECLARE refInp REFERENCE TO InputRoot;
+		MOVE refInp LASTCHILD;
+		MOVE refInp LASTCHILD;
+		
+		DECLARE code CHARACTER '';
+		IF refInp.status.code = 0 THEN
+			-- Actualizar estado de transacción
+			CALL co.com.commons.procedures.setStatusTransaction(refMQRFH2,COALESCE(CAST(refInp.status.code AS CHARACTER),'0'), refInp.status.desc);
+			SET code = 'T';
+		ELSE
+			CALL co.com.commons.procedures.setStatusTransaction(refMQRFH2,COALESCE(CAST(refInp.status.additionalStatus.code AS CHARACTER),'506'), COALESCE(refInp.additionalStatus.status.desc,'Error en transacción.'));
+			SET code = 'E';
+		END IF;
+		
+		PASSTHRU('UPDATE ADMSALUD.AGFA_DFT SET FT1_06_STATUS = ? WHERE MSH_DFT_ID = ?', code, refMQRFH2.usr.service.globalID);
+		
+		-- Crear identidad del servicio en cabecera MQRFH2
+		CALL co.com.commons.procedures.setEmisorMessage(refMQRFH2, NAME_COMPONENT, TYPE_LOG_4);
+		
+		RETURN TRUE;
+	END;
+END MODULE;
+	

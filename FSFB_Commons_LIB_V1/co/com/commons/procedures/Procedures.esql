@@ -1,0 +1,153 @@
+BROKER SCHEMA co.com.commons.procedures
+
+DECLARE LeadingMLLPBytes EXTERNAL CHARACTER '0B';
+DECLARE TrailingMLLPBytes EXTERNAL CHARACTER '1C0D';
+DECLARE AddLeadingMLLPBytes EXTERNAL BOOLEAN TRUE;
+DECLARE AddTrailingMLLPBytes EXTERNAL BOOLEAN TRUE;
+DECLARE TrimLeadingMLLPBytes EXTERNAL BOOLEAN TRUE;
+	
+DECLARE EMPTY_STRING CONSTANT CHARACTER '';
+
+CREATE PROCEDURE parseMessage(in refInp REFERENCE, IN encoding INTEGER, IN ccsid INTEGER, IN dataOut REFERENCE)BEGIN	
+	DECLARE messageTreeBlob BLOB ASBITSTREAM(refInp, encoding, ccsid, EMPTY_STRING,EMPTY_STRING,EMPTY_STRING,FolderBitStream);
+	SET dataOut.message = CAST(messageTreeBlob AS CHARACTER CCSID ccsid Encoding encoding);	
+END;
+
+CREATE PROCEDURE createIdentityService(INOUT refInp REFERENCE, IN nmService CHARACTER, IN nmComponent CHARACTER, IN typeLog CHARACTER, IN idTransaction CHARACTER, IN ipClient CHARACTER)BEGIN	
+		--Guardar datos en cabecera para auditoría
+		SET refInp.usr.contextTransaction.IdTransaction	= idTransaction;
+		SET refInp.usr.contextTransaction.idService		= nmService;
+		
+		SET refInp.usr.log.component					= nmComponent;
+		SET refInp.usr.log.idLog 						= typeLog;
+		SET refInp.usr.log.transactionDate 				= co.com.commons.functions.getDateRegisterOracle();
+		SET refInp.usr.log.ipClient 					= ipClient;
+END;
+
+CREATE PROCEDURE setEmisorMessage(INOUT refInp REFERENCE, IN nmComponent CHARACTER, IN typeLog CHARACTER)BEGIN	
+		SET refInp.usr.log.component					= nmComponent;
+		SET refInp.usr.log.idLog 						= typeLog;
+		SET refInp.usr.log.transactionDate 				= co.com.commons.functions.getDateRegisterOracle();
+END;
+
+
+CREATE PROCEDURE setStatusTransaction(INOUT refInp REFERENCE, IN code CHARACTER, IN desc CHARACTER)BEGIN	
+		SET refInp.usr.log.stateTransaction		= code;
+		SET refInp.usr.log.descTransaction 		= desc;
+END;
+
+
+
+
+
+CREATE PROCEDURE getDescriptionExceptionList(IN exceptionList reference, INOUT codeError CHARACTER, INOUT nameError CHARACTER, INOUT descError CHARACTER)
+BEGIN
+	-- Crear una referencia al primer hijo de la lista de excepciones
+	DECLARE refList REFERENCE TO exceptionList.*[1];
+	-- Seguir con el bucle mientras actúan los desplazamientos
+	WHILE LASTMOVE(refList) DO
+		-- Almacenar los valores actuales para el número de error y el texto
+		IF refList.Number IS NOT NULL THEN
+			SET codeError = refList.Number;
+			SET nameError = refList.Text;
+
+			DECLARE numInserts REFERENCE TO refList.Insert;
+			IF LENGTH(numInserts.Text) > 0 THEN
+				SET descError = descError || ' - ' || numInserts.Text || ' - ';
+			END IF;
+			
+			MOVE numInserts NEXTSIBLING;
+			WHILE LASTMOVE(numInserts) DO
+				IF LENGTH(numInserts.Text) > 0 THEN
+					SET descError = descError || ' - ' || COALESCE(numInserts.Text,'') || ' - '; 
+				END IF;
+				MOVE numInserts NEXTSIBLING;
+			END WHILE;
+		END IF;
+		-- Ahora ir al último hijo, que debería ser la próxima lista de excepciones
+		MOVE refList LASTCHILD;
+	END WHILE;
+END;
+
+
+-------------------------------------------------------------------
+-- MODULE TrimMLLPBytes
+-- Retira valores MLLBPBytes
+-- Parametros:
+-- IN:  InputBlob 
+-- Llamado: CALL co.com.commons.procedures.TrimMLLPBytes(OutputRoot.BLOB.BLOB);
+-------------------------------------------------------------------
+CREATE PROCEDURE TrimMLLPBytes(IN InputBlob REFERENCE)
+	BEGIN
+
+		DECLARE FailureCondition BOOLEAN FALSE;
+
+		IF ( TrimLeadingMLLPBytes ) THEN
+			DECLARE LeadingMLLPBLOB BLOB CAST ( LeadingMLLPBytes AS BLOB );
+			-- Checking whether the message has Leading MLLP Bytes
+			-- If not then propagate the message to 'Out' terminal, unchanged
+			DECLARE LeadingPosition INTEGER;
+			SET LeadingPosition = POSITION ( LeadingMLLPBLOB IN InputBlob );
+
+			IF ( LeadingPosition = 1 ) THEN
+			--Mensaje correcto
+			SET InputBlob = TRIM ( LEADING LeadingMLLPBLOB FROM InputBlob);
+			ELSE
+				SET FailureCondition = TRUE;
+			END IF;
+		END IF;		
+
+		IF ( FailureCondition ) THEN
+			THROW USER EXCEPTION VALUES('MLLP Error');
+		END IF;
+				
+	END;
+	
+-------------------------------------------------------------------
+-- MODULE AddMLLPBytes
+-- Adiciona valores MLLBPBytes
+-- Parametros:
+-- IN:  InputBlob 
+-- Llamado: CALL co.com.commons.procedures.AddMLLPBytes(OutputRoot.BLOB.BLOB);
+-------------------------------------------------------------------
+	
+CREATE PROCEDURE AddMLLPBytes(INOUT InputBlob REFERENCE)
+	BEGIN
+		
+		IF ( AddLeadingMLLPBytes ) THEN
+			-- Convert LeadingMLLPBytes to its BLOB format
+			DECLARE LeadingMLLPBLOB BLOB CAST ( LeadingMLLPBytes AS BLOB );
+			
+			-- Checking whether the message has Leading MLLP Bytes
+			-- If yes then propagate the message to 'Out' terminal, unchanged
+			DECLARE LeadingPosition INTEGER;
+			SET	LeadingPosition = POSITION ( LeadingMLLPBLOB IN InputBlob ); 
+			
+			-- Message does not contain LeadingMLLPBytes hence adding the same
+			SET InputBlob = LeadingMLLPBLOB || InputBlob;
+	        
+	    END IF;
+	
+		IF ( AddTrailingMLLPBytes ) THEN
+			-- Convert TrailingMLLPBytes to its BLOB format
+			DECLARE TrailingMLLPBLOB BLOB CAST ( TrailingMLLPBytes AS BLOB );
+			
+			-- Checking whether the message has Trailing MLLP Bytes
+			-- If yes then propagate the message to 'Out' terminal, unchanged
+			DECLARE TrailingPosition INTEGER POSITION ( TrailingMLLPBLOB IN InputBlob );
+			DECLARE TrailingBytesLength INTEGER LENGTH ( TrailingMLLPBLOB );
+			DECLARE MessageLength INTEGER LENGTH ( InputBlob );
+			DECLARE ActualPosition INTEGER ( MessageLength - TrailingBytesLength ) + 1;
+						
+			IF ( TrailingPosition <> ActualPosition ) THEN
+		        -- Message does not contain TrailingMLLPBytes hence adding the same
+				SET InputBlob =  InputBlob || TrailingMLLPBLOB;
+	        END IF;
+		END IF;
+	END;	
+	
+	
+CREATE PROCEDURE CurrentTimestampHL7() RETURNS CHARACTER 
+BEGIN
+	RETURN CAST(CURRENT_TIMESTAMP AS CHARACTER FORMAT 'yyyyMMddHHmmss');
+END;

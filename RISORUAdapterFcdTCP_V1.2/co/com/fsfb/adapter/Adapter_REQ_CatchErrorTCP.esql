@@ -1,0 +1,20 @@
+BROKER SCHEMA co.com.fsfb.adapter
+
+CREATE COMPUTE MODULE Adapter_REQ_CatchErrorTCP
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Declarar variables
+		DECLARE code, name, desc CHARACTER '';
+		
+		--Declarar referencia a lista de excepciones técnicas.
+		DECLARE refExceptionList REFERENCE TO InputExceptionList;
+		CALL co.com.commons.procedures.getDescriptionExceptionList(refExceptionList, code, name, desc);
+		
+		
+		SET Environment.Variables.ControlID 	= '000000';
+		SET Environment.Variables.StatusCode 	= 'AE';
+		SET Environment.Variables.StatusDesc 	= desc;
+		
+		RETURN TRUE;
+	END;
+END MODULE;
