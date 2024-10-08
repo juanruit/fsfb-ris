@@ -1,0 +1,20 @@
+BROKER SCHEMA co.com.fsfb.services
+
+DECLARE NAME_COMPONENT CONSTANT CHARACTER 'RIS_ADT_Specific';
+DECLARE TYPE_LOG_2 CONSTANT 	CHARACTER '2';
+
+CREATE COMPUTE MODULE ADT_SetIdentityService
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Copiar todo el mensaje
+		SET OutputRoot = InputRoot;
+		
+		-- Crear referencia
+		DECLARE refMQRFH2 REFERENCE TO OutputRoot.MQRFH2;
+		
+		-- Crear identidad del servicio en cabecera MQRFH2
+		CALL co.com.commons.procedures.setEmisorMessage(refMQRFH2, NAME_COMPONENT, TYPE_LOG_2);
+		
+		RETURN TRUE;
+	END;
+END MODULE;

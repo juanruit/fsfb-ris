@@ -1,0 +1,113 @@
+BROKER SCHEMA co.com.commons.functions
+
+-- declaración de namespace
+DECLARE ns NAMESPACE 'http://co/org/fsfb/fmwk';
+DECLARE hl7 NAMESPACE 'urn:hl7-org:v2xml';
+
+/*
+Función que devuelve la fecha en formato yyyyMMddHHmmssSS
+*/
+CREATE FUNCTION getDateRegisterOracle()RETURNS CHARACTER
+BEGIN
+    RETURN CAST(CURRENT_TIMESTAMP AS CHARACTER FORMAT 'yyyyMMddHHmmssSS');
+END;
+/*
+Función que devuelve el current timestamp yyyyMMddHHmmssSS para utilizarlo como globalID
+*/
+CREATE FUNCTION CurrentTimestamp() RETURNS CHARACTER
+BEGIN
+	RETURN CAST(CURRENT_TIMESTAMP AS CHARACTER FORMAT 'yyyyMMddHHmmss');
+END;
+
+-------------------------------------------------------------
+-- 	FUNCTION generateCorrelID
+--	genera una secuencia BLOB para ser utilizada como correlID
+-------------------------------------------------------------
+CREATE FUNCTION generateCorrelID() 
+	RETURNS BLOB 
+BEGIN
+	
+	DECLARE correlid_01	INTEGER RAND(123)*1000000000000;
+	DECLARE correlid_02	INTEGER RAND(456)*1000000000000;
+	DECLARE correlid_03	INTEGER RAND(789)*1000000000000;
+
+	RETURN CAST(correlid_01 AS BLOB) || CAST(correlid_02 AS BLOB) || CAST(correlid_03 AS BLOB);
+	
+END;
+
+-------------------------------------------------------------
+-- 	FUNCTION encodemsg
+--	Convierte el mensaje en BLOB
+-------------------------------------------------------------
+CREATE FUNCTION encodemsg (IN msgtype CHARACTER, IN msgset CHARACTER, IN msgformat CHARACTER, 
+							IN msgref REFERENCE, OUT msgblob BLOB ) BEGIN
+	
+	SET msgblob		= ASBITSTREAM(msgref CCSID 1208  
+								SET msgset TYPE msgtype FORMAT msgformat);
+			
+END;
+							
+-------------------------------------------------------------
+-- 	FUNCTION decodemsg
+--	Convierte el mensaje de BLOB al dominio indicado
+-------------------------------------------------------------
+CREATE FUNCTION decodemsg (IN parser CHARACTER,IN msgtype CHARACTER, IN msgset CHARACTER, IN msgformat CHARACTER, 
+							IN msgblob BLOB, INOUT msgref REFERENCE) BEGIN
+		
+	CREATE LASTCHILD OF msgref DOMAIN (parser) 
+		PARSE(msgblob SET msgset TYPE msgtype FORMAT msgformat);
+	
+END;
+							
+
+-------------------------------------------------------------------
+-- MODULE Build_ACK
+-- construye un mensaje ACK teniendo como insumo un mensaje HL7
+-- Parametros:
+--	IN:  messagetype, messagetrigger, receivingapplication, version,
+--		 msgRefIn: con estructura InputRoot.MRM 
+--  OUT: msgRefOut: con estructura OutputRoot.MRM 
+-------------------------------------------------------------------
+CREATE FUNCTION build_ACK (IN  messagetype 		     CHARACTER,
+						   IN  messagetrigger 	     CHARACTER,
+						   IN  receivingapplication  CHARACTER,
+						   IN  version 			     CHARACTER,
+						   IN  msgRefIn			   	 REFERENCE,  
+						   INOUT msgRefOut			 REFERENCE)
+BEGIN
+	-- Declaracion de namespaces utilizados para generacion del ACK
+	DECLARE hl7 NAMESPACE 'urn:hl7-org:v2xml';
+	
+	-- Creacion de los tags contenedores requeridos por el mensaje de salida de hl7
+	CREATE FIELD msgRefOut.hl7:MSH;
+	CREATE FIELD msgRefOut.hl7:MSA;
+	
+	-- Referencias a los mensajes de salida para MSH y MSA
+	DECLARE mshRefOut   REFERENCE TO msgRefOut.hl7:MSH;
+	DECLARE msaRefOut   REFERENCE TO msgRefOut.hl7:MSA;
+	-- Referencias a los mensajes de entrada para MSH y MSA
+	DECLARE mshRefIn 	REFERENCE TO msgRefIn.hl7:MSH;
+	DECLARE msaRefIn 	REFERENCE TO msgRefIn.hl7:MSA;
+	
+	-- Declaracion de variables
+	DECLARE messagecontrolid CHARACTER msgRefIn.hl7:MSH.hl7:"MSH.10.MessageControlID";
+	DECLARE separator 		 CHARACTER '|';
+	DECLARE ackCode			 CHARACTER 'AR';
+	DECLARE errorMsg		 CHARACTER 'Error en la transacción. Consulte con el administrador del sistema';
+	
+	-- Construccion del payLoad de salida para el elemento complejo MSH
+	SET mshRefOut.hl7:"MSH.1.FieldSeparator" 				  = separator;
+	SET mshRefOut.hl7:"MSH.2.ServiceString"  				  = mshRefIn.hl7:"MSH.2.ServiceString";
+	SET mshRefOut.hl7:"MSH.3.SendingApplication".hl7:"HD.1"   = 'HIS';
+	SET mshRefOut.hl7:"MSH.5.ReceivingApplication".hl7:"HD.1" = receivingapplication;
+	SET mshRefOut.hl7:"MSH.7.DateTimeOfMessage".hl7:"TS.1" 	  = CAST(CURRENT_TIMESTAMP AS CHARACTER FORMAT 'YYYYMMDDhhmmss');
+	SET mshRefOut.hl7:"MSH.9.MessageType".hl7:"MSG.1" 		  = messagetype;
+	SET mshRefOut.hl7:"MSH.9.MessageType".hl7:"MSG.2" 		  = messagetrigger;
+	SET mshRefOut.hl7:"MSH.10.MessageControlID" 			  = CAST(CURRENT_TIMESTAMP AS CHARACTER FORMAT 'YYYYMMDDhhmmss');
+	SET mshRefOut.hl7:"MSH.11.ProcessingID".hl7:"PT.1" 		  = msgRefIn.hl7:"MSH.11.ProcessingID".hl7:"PT.1";
+	SET mshRefOut.hl7:"MSH.12.VersionID".hl7:"VID.1" 		  = CAST(version AS DECIMAL);
+	-- Construccion del payLoad de salida para el elemento complejo MSA
+	SET msaRefOut.hl7:"MSA.1.AcknowledgementCode" = ackCode;
+	SET msaRefOut.hl7:"MSA.2.MessageControlID"    = messagecontrolid;
+	SET msaRefOut.hl7:"MSA.3.TextMessage" 		  = errorMsg;
+END; 

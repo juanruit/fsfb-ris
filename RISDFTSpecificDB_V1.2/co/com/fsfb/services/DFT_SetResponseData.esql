@@ -1,0 +1,13 @@
+BROKER SCHEMA co.com.fsfb.services
+
+
+CREATE COMPUTE MODULE DFT_SetResponseData
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET OutputRoot.MQMD 	= Environment.Variables.headers._mqm;
+		SET OutputRoot.MQRFH2 	= Environment.Variables.headers._mqrfh2;
+		SET OutputRoot.BLOB 	= InputRoot.BLOB;
+		
+		RETURN TRUE;
+	END;
+END MODULE;

@@ -1,0 +1,27 @@
+BROKER SCHEMA co.com.fsfb.services
+
+
+CREATE COMPUTE MODULE ORMOUT_CTROL_REQ_ReqDFT
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		--Copiar todo el mensaje
+		SET OutputRoot = InputRoot;
+			
+		-- Igualo identificadores
+		SET OutputRoot.MQMD.CorrelId = InputRoot.MQMD.MsgId;
+		
+		-- Copiar configuraciòn aggregate
+		SET OutputLocalEnvironment = InputLocalEnvironment;
+		
+		--Validar si va o no a DFT
+		DECLARE refInp REFERENCE TO InputRoot;
+		MOVE refInp LASTCHILD;
+		MOVE refInp LASTCHILD;
+		
+		IF EXISTS( refInp.*:FT1_LOOP_P03.*:FT1[] )  THEN
+			RETURN TRUE;	
+		ELSE
+			RETURN FALSE;
+		END IF;
+	END;
+END MODULE;

@@ -1,0 +1,81 @@
+BROKER SCHEMA co.com.commons.modules
+
+CREATE COMPUTE MODULE Service_CatchError
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Copiar cabeceras para respuesta
+		/* --------------------------------------------------------- */
+		SET OutputRoot.MQMD 	= InputRoot.MQMD;
+		SET OutputRoot.MQRFH2 	= InputRoot.MQRFH2;
+		
+		-- Declarar variables
+		DECLARE code, name, desc CHARACTER '';
+		
+		--Declarar referencia a lista de excepciones técnicas.
+		DECLARE refExceptionList REFERENCE TO InputExceptionList;
+		CALL co.com.commons.procedures.getDescriptionExceptionList(refExceptionList, code, name, desc);
+		
+		--Poner nombre de componente
+		SET OutputRoot.MQRFH2.usr.trazability.component = SUBSTRING(desc BEFORE '-  -');
+		SET OutputRoot.MQRFH2.usr.trazability.order 	= 6;
+		
+		-- Crear mensaje de salida
+		/* --------------------------------------------------------- */
+		CREATE FIELD OutputRoot.JSON.Data;
+		DECLARE refOut REFERENCE TO  OutputRoot.JSON.Data;
+		
+		SET refOut.status.code					= 506;
+		SET refOut.status.dateTransaction		= CURRENT_TIMESTAMP;
+		SET refOut.status.desc					= 'Error en la mediación';
+		
+		SET refOut.status.additionalStatus.code	= code;
+		SET refOut.status.additionalStatus.desc	= name || ' : ' || desc;
+		
+		RETURN TRUE;
+	END;
+END MODULE;
+
+
+CREATE COMPUTE MODULE Service_SetIdentifiers
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Copiar todo el mensaje
+		SET OutputRoot 				= InputRoot;
+		SET OutputRoot.Properties 	= NULL;
+		
+		-- Copiar identificadores
+		SET OutputRoot.MQMD.MsgId 		= CAST(InputLocalEnvironment.WrittenDestination.MQ.DestinationData.msgId AS BLOB);
+		SET OutputRoot.MQMD.CorrelId 	= CAST(InputLocalEnvironment.WrittenDestination.MQ.DestinationData.msgId AS BLOB);		
+		
+		RETURN TRUE;
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE Module_Build_ACK
+
+DECLARE UDPmessagetype EXTERNAL CHARACTER '';
+DECLARE UDPmessagetrigger EXTERNAL CHARACTER '';
+DECLARE UDPreceivingapplication EXTERNAL CHARACTER '';
+DECLARE UDPversion EXTERNAL CHARACTER '';
+	
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+	
+		-- Copiar cabeceras para respuesta
+		SET OutputRoot.Properties = InputRoot.Properties;
+		-- Set de cabecera MQMD
+		SET OutputRoot.MQMD = InputRoot.MQMD;
+		SET OutputRoot.MQRFH2 = InputRoot.MQRFH2;
+		
+		DECLARE refMQRFH2 REFERENCE TO OutputRoot.MQRFH2;
+		CREATE FIELD OutputRoot.MRM;
+		DECLARE msgRefIn REFERENCE TO InputRoot.MRM;
+		DECLARE msgRefOut REFERENCE TO OutputRoot.MRM;
+		
+		CALL co.com.commons.functions.build_ACK(UDPmessagetype, UDPmessagetrigger, UDPreceivingapplication , UDPversion, msgRefIn, msgRefOut);
+        RETURN TRUE;
+	END;
+END MODULE;
+
+
+

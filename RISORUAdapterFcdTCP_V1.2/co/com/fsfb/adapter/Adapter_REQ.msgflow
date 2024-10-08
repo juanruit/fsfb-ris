@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmMQOutput.msgnode="ComIbmMQOutput.msgnode" xmlns:ComIbmMSLMapping.msgnode="ComIbmMSLMapping.msgnode" xmlns:ComIbmResetContentDescriptor.msgnode="ComIbmResetContentDescriptor.msgnode" xmlns:ComIbmTCPIPServerInput.msgnode="ComIbmTCPIPServerInput.msgnode" xmlns:ComIbmTCPIPServerOutput.msgnode="ComIbmTCPIPServerOutput.msgnode" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore"
+    xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="co/com/fsfb/adapter/Adapter_REQ.msgflow" nsPrefix="co_com_fsfb_adapter_Adapter_REQ.msgflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1" nodeLayoutStyle="RECTANGLE">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <translation xmi:type="utility:TranslatableString" key="Adapter_REQ" bundleName="co/com/fsfb/adapter/Adapter_REQ" pluginId="RISORUAdapterFcdTCP_V1.2"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/RISORUAdapterFcdTCP_V1.2/icons/full/obj16/Adapter_REQ.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/RISORUAdapterFcdTCP_V1.2/icons/full/obj30/Adapter_REQ.gif"/>
+    <composition>
+      <nodes xmi:type="ComIbmTCPIPServerInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="69,148" connectionDetails="4121" modifyInputStream="reserveThenRelease" messageDomainProperty="BLOB" recordDetection="delimited" recordDelimiter="customDelimiter" customDelimiter="1C0D">
+        <translation xmi:type="utility:ConstantString" string="TCPIPSrvInp:4121"/>
+      </nodes>
+      <nodes xmi:type="ComIbmResetContentDescriptor.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="466,151" messageDomain="DFDL" resetMessageDomain="true" messageSet="{HL7-2.7}" resetMessageSet="true" messageType="{urn:hl7-org:v2xml}:R01" resetMessageType="true" resetMessageFormat="true">
+        <translation xmi:type="utility:ConstantString" string="Reset Content Descriptor"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_4" location="262,149" computeExpression="esql://routine/co.com.fsfb.adapter#Adapter_REQ_NormalizeMessage.Main">
+        <translation xmi:type="utility:ConstantString" string="NormalizeMessage"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_5" location="672,155" queueName="RIS.ORU.INPUT.DB" request="true" replyToQ="RIS.ADAPTER.FCD.TCP.ORMOUT.RESP">
+        <translation xmi:type="utility:ConstantString" string="RIS.ORU.INPUT.DB"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMQOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_6" location="468,84" queueName="MQINP.LOGS.REGISTER.REQ">
+        <translation xmi:type="utility:ConstantString" string="MQINP.LOGS.REGISTER.REQ"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_10" location="273,251" computeExpression="esql://routine/co.com.fsfb.adapter#Adapter_REQ_CatchErrorTCP.Main" computeMode="destinationAndMessage">
+        <translation xmi:type="utility:ConstantString" string="CatchErrorTCP"/>
+      </nodes>
+      <nodes xmi:type="ComIbmResetContentDescriptor.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_11" location="691,255" messageDomain="BLOB" resetMessageDomain="true" resetMessageSet="true" resetMessageType="true" resetMessageFormat="true">
+        <translation xmi:type="utility:ConstantString" string="Reset Content Descriptor1"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTCPIPServerOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_12" location="1108,265" connectionDetails="4121" sendTo="all">
+        <translation xmi:type="utility:ConstantString" string="TCPIPSrvOut:4121"/>
+      </nodes>
+      <nodes xmi:type="ComIbmMSLMapping.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_13" location="482,251" mappingExpression="msl://{co.com.fsfb.adapter}#Adapter_REQ_Mapping">
+        <translation xmi:type="utility:ConstantString" string="ACK_Error"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="895,260" computeExpression="esql://routine/co.com.fsfb.adapter#Adapter_RESP_CreateMsgRs.Main">
+        <translation xmi:type="utility:ConstantString" string="CreateMsgRs"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_4" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_5" targetNode="FCMComposite_1_5" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_9" targetNode="FCMComposite_1_6" sourceNode="FCMComposite_1_4" sourceTerminalName="OutTerminal.out1" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_11" targetNode="FCMComposite_1_10" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.catch" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_13" targetNode="FCMComposite_1_13" sourceNode="FCMComposite_1_10" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_14" targetNode="FCMComposite_1_11" sourceNode="FCMComposite_1_13" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_11" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_12" sourceNode="FCMComposite_1_3" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer/>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

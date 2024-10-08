@@ -1,0 +1,137 @@
+BROKER SCHEMA co.com.fsfb.services
+
+CREATE COMPUTE MODULE DFT_ExecuteSP
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Crear mensaje de Salida
+		SET OutputRoot.Properties	= InputRoot.Properties;
+		SET OutputRoot.MQMD	      	= InputRoot.MQMD;
+		SET OutputRoot.MQRFH2	  	= InputRoot.MQRFH2;
+		
+		-- Copiar cabeceras para respuesta
+		SET Environment.Variables.headers._mqm 		= InputRoot.MQMD;
+		
+		-- Crear referencia
+		DECLARE refMQRFH2    REFERENCE TO OutputRoot.MQRFH2;
+		
+		DECLARE refInp REFERENCE TO InputRoot;
+		MOVE  refInp LASTCHILD;
+		MOVE  refInp LASTCHILD;
+		
+		--Referencias a objeto de entrada.
+		--DECLARE refBase 		REFERENCE TO InputRoot.XMLNSC.O01; --msgin 
+		DECLARE refOrderStatusModifier 		REFERENCE TO refInp.*:ORC_LOOP_P03.*:ORC.*:"ORC.25.OrderStatusModifier".*:"CWE.1";
+		DECLARE refPrincipalRsInterpreter	REFERENCE TO refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.32.PrincipalResultInterpreter".*:"NDL.1".*:"CNN.1";
+		
+		-- Variables para la invocación
+		DECLARE ACK, statusTmp CHARACTER;
+		SET refOrderStatusModifier = REPLACE(refOrderStatusModifier, '.','');
+		
+		CASE refOrderStatusModifier
+		WHEN 'F' THEN 
+			SET statusTmp = 'COMPLETED';
+		  WHEN 'CREATED'	THEN 
+		  	SET statusTmp = 'CREATED^CREATED^QPLANNER';
+		  WHEN 'A' 			THEN 
+		  	SET statusTmp = 'ARRIBADO^ARRIBADO^QPLANNER'; 
+		  WHEN 'PX' 		THEN 
+		  	SET statusTmp = 'CANCELLED'; 
+		  WHEN 'PS' 		THEN 
+		  	SET statusTmp = 'IN_PROGRESS';
+	      WHEN 'IMAGE_AVAILABLE' THEN 
+	      	SET statusTmp =  'IMAGE_AVAILABLE';
+	      WHEN 'P'          THEN 
+	      	SET statusTmp =  'PRELIMINAR'; 
+		  WHEN '2' 			THEN 
+		  	SET statusTmp =  '2^Deleted'; 
+		  WHEN 'PP' 		THEN 
+		  	SET statusTmp =  '2^Paused';
+		ELSE 
+			--SET statusTmp = REPLACE(refInp.*:ORC_LOOP_P03.*:ORC.*:"ORC.25.OrderStatusModifier".*:"CWE.1",'.',''); 
+			SET statusTmp = '';
+		END CASE;
+		
+		
+		--SUBSTRING(msgin.ORC_LOOP.OrderDetail_LOOP.Order.OBR.PlacerOrderNumber_449.EntityIdentifier_1362  FROM 1 FOR 20),
+		DECLARE tmp CHARACTER SUBSTRING( refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.2.PlacerOrderNumber".*:"EI.1" FROM 1 FOR 20);
+		DECLARE tmp2 CHARACTER refInp.*:ORC_LOOP_P03.*:ORC.*:"ORC.3.FillerOrderNumber".*:"EI.1";
+		DECLARE tmp3 CHARACTER SUBSTRING(refInp.*:ORC_LOOP_P03.*:ORC.*:"ORC.4.PlacerGroupNumber".*:"EI.1" AFTER '_');
+			
+		-- Crear Mensaje XMLNSC para Auditoria
+		CALL spRIS (	
+				ACK,
+				CAST(refInp.*:MSH.*:"MSH.10.MessageControlID" AS INTEGER),
+				SUBSTRING(CAST(CAST(refInp.*:MSH.*:"MSH.7.DateTimeOfMessage" AS TIMESTAMP FORMAT 'yyyyMMddHHmmss') AS CHARACTER) FROM 12 FOR 19),
+				SUBSTRING(CAST(CAST(refInp.*:MSH.*:"MSH.7.DateTimeOfMessage" AS TIMESTAMP FORMAT 'yyyyMMddHHmmss') AS CHARACTER) FROM 12 FOR 19),
+				tmp2,
+				REPLACE(refInp.*:ORC_LOOP_P03.*:ORC.*:"ORC.21.OrderingFacilityName".*:"XON.1", '.',''),  
+				refInp.*:ORC_LOOP_P03.*:ORC.*:"ORC.10.EnteredBy".*:"XCN.1",
+				statusTmp,
+				refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.16.OrderingProvider".*:"XCN.1",
+				SUBSTRING(CAST(CAST(refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.6.RequestedDateTime".*:"TS.1" AS TIMESTAMP FORMAT 'yyyyMMddHHmmss') AS CHARACTER) FROM 12 FOR 19),
+				refInp.*:PID.*:"PID.4.AlternatePatientIDPID".*:"CX.1",
+				refInp.*:PID.*:"PID.3.PatientIdentifierList".*:"CX.1",
+				SUBSTRING(refInp.*:PV1_LOOP_P03.*:PV1.*:"PV1.18.PatientType".*:"CWE.1" FROM 1 FOR 2),
+				refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.4.UniversalServiceIdentifier".*:"CWE.1",
+				refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.4.UniversalServiceIdentifier".*:"CWE.2",
+				refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.2.PlacerOrderNumber".*:"EI.1" || '^' || refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.2.PlacerOrderNumber".*:"EI.2", 
+				refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.31.ReasonforStudy".*:"CWE.1",
+				SUBSTRING(refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.13.RelevantClinicalInfo" FROM 1 FOR 255),
+				refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.18.PlacerField1",
+				SUBSTRING(CAST(CAST(refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.7.ObservationDateTime" AS TIMESTAMP FORMAT 'yyyyMMddHHmmss') AS CHARACTER) FROM 12 FOR 19),
+				SUBSTRING(CAST(CAST(refInp.*:ORC_LOOP_P03.*:OBR_LOOP.*:OBR.*:"OBR.6.RequestedDateTime".*:"TS.1" AS TIMESTAMP FORMAT 'yyyyMMddHHmmss') AS CHARACTER) FROM 12 FOR 19),
+				refPrincipalRsInterpreter,
+				'N',
+				tmp,
+				'',
+				'',
+				tmp3
+		);
+			
+		SET Environment.Variables.ControlID 	= TRIM(CAST(refInp.*:MSH.*:"MSH.10.MessageControlID" AS CHARACTER));
+		IF ACK = 'OK' THEN
+			SET Environment.Variables.StatusCode 	= 'AA';
+			SET Environment.Variables.StatusDesc 	= '';
+			CALL co.com.commons.procedures.setStatusTransaction(refMQRFH2, '0', 'Transaccón Exitosa - ' || Environment.Variables.ControlID);
+		ELSE
+			SET Environment.Variables.StatusCode 	= 'AR';
+			SET Environment.Variables.StatusDesc 	=  ACK;
+			CALL co.com.commons.procedures.setStatusTransaction(refMQRFH2, '506', ACK || ' - ' || Environment.Variables.ControlID);
+		END IF;
+			
+		-- Guardar información del servicio para responder y auditoría.
+		SET Environment.Variables.headers._mqrfh2 	= OutputRoot.MQRFH2;
+			
+		RETURN TRUE;
+	END;
+	
+	CREATE PROCEDURE spRIS (	INOUT 	SRV_Message 			CHARACTER, 	
+			IN	In_MSH_ORMO_ID 				INTEGER, 	
+			IN 	In_ORM_01_HIS_DATE 			CHARACTER,
+			IN 	In_MSH_06_RIS_DATE 			CHARACTER, 	
+			IN 	In_ORC_04_QP_REQ_ID 		CHARACTER,	
+			IN 	In_ORC_21_QP_SERV_ID		CHARACTER,
+			IN	In_ORC_10_QP_USER_RIS		CHARACTER,	
+			IN	In_ORC_25_QP_STATUS			CHARACTER,	
+			IN	In_OBR_16_QP_MED_ID			CHARACTER,
+			IN 	In_OBR_6_QP_REQ_DATE		CHARACTER,	
+			IN	In_PID_05_ID				CHARACTER,	
+			IN	In_PID_05_ID2				CHARACTER,
+			IN	In_PV1_18_PTYPE				CHARACTER,	
+			IN	In_OBR_04_EXAM_CODE			CHARACTER,	
+			IN	In_OBR_04_EXAM_DESC			CHARACTER,
+			IN 	In_OBR_02_QP_EXAM_ID		CHARACTER,	
+			IN	In_OBR_31_PREST_INFO		CHARACTER,	
+			IN 	In_OBR_13_ORDER_INFO		CHARACTER,
+			IN	In_OBR_18_ACC_NUMBER		CHARACTER,	
+			IN	In_OBR_07_EXAM_DATE_APP		CHARACTER,	
+			IN	In_OBR_06_EXAM_DATE_BATCH 	CHARACTER,
+			IN	In_OBR_32_RAD_ID			CHARACTER,	
+			IN	In_ORM_02_STATUS_HIS		CHARACTER,	
+			IN	In_PV1_VISITNR				CHARACTER,
+			IN	In_AGFARIS_ErrorMsg			CHARACTER,	
+			IN	In_MSH_STATUS				CHARACTER,	
+			IN	In_ORC_04_QP_REQ_IDOUT		CHARACTER
+	) LANGUAGE DATABASE EXTERNAL NAME "ADMSALUD.SvcIbmPrcOrm_Pkg.SvcIbmPrcOrm";
+		
+END MODULE;

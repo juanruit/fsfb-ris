@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://sisips/admsalud" xmlns:NS1="http://sisips/admsalud">
+	<xsd:element name="ACK_RIS">
+        <xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="MSH_ORU_ID" type="xsd:string"/>
+				<xsd:element name="SRV_Message" type="xsd:string"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+</xsd:schema>

@@ -1,0 +1,42 @@
+BROKER SCHEMA co.com.fsfb.services
+
+
+CREATE COMPUTE MODULE DFT_CatchErrorTCP
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Copiar cabeceras para respuesta
+		/* --------------------------------------------------------- */
+		SET OutputRoot.MQMD 	= InputRoot.MQMD;
+		SET OutputRoot.MQRFH2 	= InputRoot.MQRFH2;
+		
+		-- Crear referencia
+		DECLARE refMQRFH2    REFERENCE TO OutputRoot.MQRFH2;
+		
+		-- Declarar variables
+		DECLARE code, name, desc CHARACTER '';
+		
+		--Declarar referencia a lista de excepciones técnicas.
+		DECLARE refExceptionList REFERENCE TO InputExceptionList;
+		CALL co.com.commons.procedures.getDescriptionExceptionList(refExceptionList, code, name, desc);
+		
+		--Declarar referencia a objeto de entrada
+		DECLARE refInp REFERENCE TO InputRoot;
+		MOVE  refInp LASTCHILD;
+		MOVE  refInp LASTCHILD;
+			
+		--Referencias a objeto de entrada.
+		DECLARE refBase					REFERENCE TO InputRoot.DFDL.*:P03;
+		
+		SET Environment.Variables.ControlID 	= TRIM(CAST(refBase.*:MSH.*:"MSH.10.MessageControlID" AS CHARACTER));
+		SET Environment.Variables.StatusCode 	= 'AE';
+		SET Environment.Variables.StatusDesc 	= SUBSTRING(desc from -1 for 100);
+		
+		CALL co.com.commons.procedures.setStatusTransaction(refMQRFH2, '506', ' Transacció no exitosa ' || ' - ' || CAST(Environment.Variables.ControlID AS CHARACTER));
+			
+		-- Guardar información del servicio para responder y auditoría.
+		SET Environment.Variables.headers._mqmd 	= OutputRoot.MQMD;
+		SET Environment.Variables.headers._mqrfh2 	= OutputRoot.MQRFH2;
+		
+		RETURN TRUE;
+	END;
+END MODULE;

@@ -1,0 +1,91 @@
+BROKER SCHEMA co.com.fsf.services
+
+DECLARE TYPE_LOG_4 CONSTANT CHARACTER '4';
+
+CREATE COMPUTE MODULE Adapter_REQ_CatchError
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Copiar cabeceras para respuesta
+		/* --------------------------------------------------------- */
+		-- setear set de caracteres
+		SET OutputRoot.Properties.CodedCharSetId = '819';
+		
+		-- construcción de cabecera MQMD
+		CREATE FIELD OutputRoot.MQMD;
+		CREATE FIELD OutputRoot.MQRFH2;
+		
+		DECLARE refMQRFH2 REFERENCE TO OutputRoot.MQRFH2;
+		
+		-- Crear identidad del servicio en cabecera MQRFH2
+		CALL co.com.commons.procedures.createIdentityService(refMQRFH2, NAME_SERVICE, NAME_COMPONENT, TYPE_LOG_1, UUIDASCHAR, 'localhost');
+		
+		-- Declarar variables
+		DECLARE code, name, desc CHARACTER '';
+		
+		--Declarar referencia a lista de excepciones técnicas.
+		DECLARE refExceptionList REFERENCE TO InputExceptionList;
+		CALL co.com.commons.procedures.getDescriptionExceptionList(refExceptionList, code, name, desc);
+		
+		-- Actualizar estado de transacción
+		CALL co.com.commons.procedures.setStatusTransaction(refMQRFH2,code,desc);
+		
+		-- Crear mensaje de salida
+		/* --------------------------------------------------------- */
+		CREATE FIELD OutputRoot.JSON.Data;
+		DECLARE refOut REFERENCE TO  OutputRoot.JSON.Data;
+		
+		SET refOut.status.code					= 506;
+		SET refOut.status.dateTransaction		= CURRENT_TIMESTAMP;
+		SET refOut.status.desc					= 'Error en la mediación';
+		
+		SET refOut.status.additionalStatus.code	= code;
+		SET refOut.status.additionalStatus.desc	= name || ' : ' || desc;
+		
+		RETURN TRUE;
+	END;
+END MODULE;
+
+
+CREATE COMPUTE MODULE Adapter_RESP_CatchError
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Copiar cabeceras para respuesta
+		/* --------------------------------------------------------- */
+		-- setear set de caracteres
+		SET OutputRoot.Properties.CodedCharSetId = '819';
+		
+		-- construcción de cabecera MQMD
+		CREATE FIELD OutputRoot.MQMD;
+		CREATE FIELD OutputRoot.MQRFH2;
+		
+		-- Crear referencia
+		DECLARE refMQRFH2 REFERENCE TO OutputRoot.MQRFH2;
+		
+		-- Crear identidad del servicio en cabecera MQRFH2
+		CALL co.com.commons.procedures.setEmisorMessage(refMQRFH2, NAME_COMPONENT, TYPE_LOG_4);
+		
+		-- Declarar variables
+		DECLARE code, name, desc CHARACTER '';
+		
+		--Declarar referencia a lista de excepciones técnicas.
+		DECLARE refExceptionList REFERENCE TO InputExceptionList;
+		CALL co.com.commons.procedures.getDescriptionExceptionList(refExceptionList, code, name, desc);
+		
+		-- Actualizar estado de transacción
+		CALL co.com.commons.procedures.setStatusTransaction(refMQRFH2,code,desc);
+		
+		-- Crear mensaje de salida
+		/* --------------------------------------------------------- */
+		CREATE FIELD OutputRoot.JSON.Data;
+		DECLARE refOut REFERENCE TO  OutputRoot.JSON.Data;
+		
+		SET refOut.status.code					= 506;
+		SET refOut.status.dateTransaction		= CURRENT_TIMESTAMP;
+		SET refOut.status.desc					= 'Error en la mediación';
+		
+		SET refOut.status.additionalStatus.code	= code;
+		SET refOut.status.additionalStatus.desc	= name || ' : ' || desc;
+		
+		RETURN TRUE;
+	END;
+END MODULE;

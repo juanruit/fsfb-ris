@@ -1,0 +1,119 @@
+BROKER SCHEMA co.com.fsfb.services
+
+CREATE COMPUTE MODULE DFT_ExecuteSP
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Crear mensaje de Salida
+		SET OutputRoot.Properties	= InputRoot.Properties;
+		SET OutputRoot.MQMD	      	= InputRoot.MQMD;
+		SET OutputRoot.MQRFH2	  	= InputRoot.MQRFH2;
+		
+		-- Copiar cabeceras para respuesta
+		SET Environment.Variables.headers._mqm 		= InputRoot.MQMD;
+		
+		-- Crear referencia
+		DECLARE refMQRFH2    REFERENCE TO OutputRoot.MQRFH2;
+		
+		DECLARE refInp REFERENCE TO InputRoot;
+		MOVE  refInp LASTCHILD;
+		MOVE  refInp LASTCHILD;
+		
+		--Referencias a objeto de entrada.
+		DECLARE refBase					REFERENCE TO InputRoot.DFDL.*:P03;
+		DECLARE refCursorFT1LoopP03 	REFERENCE TO InputRoot.DFDL.*:P03.*:FT1_LOOP_P03;
+
+		-- Creacion de variables para el llamado del SP
+		DECLARE ACK 	  				CHARACTER '';
+		DECLARE CONTANT_1 				INTEGER 1;
+		
+		declare tmp CHARACTER refCursorFT1LoopP03.*:PR1_LOOP.*:PR1.*:"PR1.3.ProcedureCode".*:"CNE.1";
+		declare tmp2 CHARACTER COALESCE( refBase.*:PV1_LOOP_P03.*:PV1.*:"PV1.19.VisitNumber".*:"CX.1", ' ');
+		declare tmp3 CHARACTER refCursorFT1LoopP03.*:PR1_LOOP.*:PR1.*:"PR1.6.ProcedureFunctionalType".*:"CWE.1";
+		declare tmp4 CHARACTER REPLACE(refCursorFT1LoopP03.*:FT1.*:"FT1.26.ProcedureCodeModifier".*:"CNE.1",'.','');
+		
+		ProcessInvoice: BEGIN
+			IF NOT LASTMOVE(refCursorFT1LoopP03) THEN
+      			LEAVE ProcessInvoice;
+    		END IF;
+       	
+			-- Crear Mensaje XMLNSC para Auditoria
+			CALL SvcIbmPrcDft ( 	        
+		        ACK, 									        		
+				CONTANT_1,             
+				refBase.*:PID.*:"PID.2.PatientID".*:"CX.1",                
+				CAST(refBase.*:PID.*:"PID.3.PatientIdentifierList".*:"CX.1"  AS INTEGER),               
+				refBase.*:PID.*:"PID.4.AlternatePatientIDPID".*:"CX.1",           
+				refBase.*:PID.*:"PID.5.PatientName".*:"XPN.1".*:"FN.1" ||  '^' ||  refBase.*:PID.*:"PID.5.PatientName".*:"XPN.2",          
+				tmp,   
+				refCursorFT1LoopP03.*:PR1_LOOP.*:PR1.*:"PR1.3.ProcedureCode".*:"CNE.1",       
+				refCursorFT1LoopP03.*:FT1.*:"FT1.2.TransactionID",      
+				refCursorFT1LoopP03.*:FT1.*:"FT1.2.TransactionID",        
+				CAST(refCursorFT1LoopP03.*:FT1.*:"FT1.3.TransactionBatchID" AS INTEGER),    
+				REPLACE(CAST(refCursorFT1LoopP03.*:FT1.*:"FT1.4.TransactionDate".*:"DR.1" AS CHARACTER), 'T', ' '),       
+				REPLACE(CAST(refCursorFT1LoopP03.*:FT1.*:"FT1.4.TransactionDate".*:"DR.1" AS CHARACTER), 'T', ' '),       
+				REPLACE(CAST(refCursorFT1LoopP03.*:FT1.*:"FT1.5.TransactionPostingDate" AS CHARACTER), 'T', ' '),
+				'TP',         
+				refCursorFT1LoopP03.*:FT1.*:"FT1.7.TransactionCode".*:"CWE.1" ||  '^' || refCursorFT1LoopP03.*:FT1.*:"FT1.7.TransactionCode".*:"CWE.2" ||  '^' || refCursorFT1LoopP03.*:FT1.*:"FT1.7.TransactionCode".*:"CWE.3",        
+				refCursorFT1LoopP03.*:FT1.*:"FT1.7.TransactionCode".*:"CWE.1",      
+				CAST(1 AS INTEGER),        
+				CAST(refCursorFT1LoopP03.*:FT1.*:"FT1.10.TransactionQuantity" AS INTEGER),            
+				refCursorFT1LoopP03.*:FT1.*:"FT1.13.DepartmentCode".*:"CWE.4",             
+				refCursorFT1LoopP03.*:FT1.*:"FT1.18.PatientType".*:"CWE.1",         
+				refCursorFT1LoopP03.*:FT1.*:"FT1.24.EnteredByCode".*:"XCN.1",       
+				'',
+				tmp2,        
+				tmp4,     
+				tmp3,
+				NULL
+			);
+			 
+			END ProcessInvoice;
+			
+			SET Environment.Variables.ControlID 	= TRIM(CAST(refBase.*:MSH.*:"MSH.10.MessageControlID" AS CHARACTER));
+			IF ACK = '1000000' THEN
+				SET Environment.Variables.StatusCode 	= 'AA';
+				SET Environment.Variables.StatusDesc 	= '';
+				CALL co.com.commons.procedures.setStatusTransaction(refMQRFH2, '0', 'Transaccón Exitosa - ' || Environment.Variables.ControlID);
+			ELSE
+				SET Environment.Variables.StatusCode 	= 'AE';
+				SET Environment.Variables.StatusDesc 	=  ACK;
+				CALL co.com.commons.procedures.setStatusTransaction(refMQRFH2, '506', ACK || ' - ' || Environment.Variables.ControlID);
+			END IF;
+			
+			-- Guardar información del servicio para responder y auditoría.
+			SET Environment.Variables.headers._mqrfh2 	= OutputRoot.MQRFH2;
+			
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE SvcIbmPrcDft  ( 
+	  INOUT SRV_Message CHARACTER      								  /*  Parámetro de uso interno  */
+    , IN In_MSH_DFT_ID INTEGER                                        /*  Identificador único del registro  */
+    , IN In_PID_ID CHARACTER                                          /*  Identificación del paciente  */
+    , IN In_PID_ID2  INTEGER                                          /*  PAC_PAC_Numero  */
+    , IN In_PID_03_INFO CHARACTER                                      
+    , IN In_PID_05_FNAME  CHARACTER                                     
+    , IN In_PR1_03_BILLING_CODE  CHARACTER                            /*  Cod. Facturación  */
+    , IN In_PR1_03_CODE_INT   CHARACTER                               /*  Consecutivo  */
+    , IN In_FT1_02_EXAM_CODE  CHARACTER                               /*  codigo del examen  */
+    , IN In_FT1_02_TYPE_ID  CHARACTER                                 /*  Id producto  */
+    , IN In_FT1_03_BATCH_ID  INTEGER                                  /*  Numero de la petición en RIS  */
+    , IN In_FT1_04_PROCEDURE_DATE CHARACTER                           /*  fecha de examen  */
+    , IN In_FT1_04_TRANS_DATE   CHARACTER                             /*  fecha peticion   */
+    , IN In_FT1_05_POST_DATE CHARACTER                                /*  Fecha insercion  */
+    , IN In_FT1_06_STATUS  CHARACTER                                  /*  Estado registro  */
+    , IN In_FT1_07_CODE_ID  CHARACTER                                 /*  Informacion examen  */
+    , IN In_FT1_07_EXAM_CODE CHARACTER                                /*  Codigo prestació  */
+    , IN In_FT1_02_07_FLAG  INTEGER                                   /*  tipo registro  */
+    , IN In_FT1_10_QTY  INTEGER                                       /*  Cantidad  */
+    , IN In_FT1_13_CC  CHARACTER                                      /*  Centro de Costo  */
+    , IN In_FT1_18_P_TYPE  CHARACTER                                  /*  Tipo de Paciente  */
+    , IN In_FT1_24_USER_RIS  CHARACTER                                /*  Usuario RIS  */
+    , IN In_FT1_09_STATUS_PAID  CHARACTER                             /*  Producto Cubierto  */
+    , IN In_PV1_19_VISITNR    CHARACTER                               /*  Numero que agrupa los cargos al pacie  */
+    , IN In_FT1_26_ACC_NUMBER  CHARACTER                              /*  Numero de acceso de la prestación  */
+    , IN In_FT1_ANESTESIA   CHARACTER                                 /*  Anestesia  */
+    , IN In_DFT_03_ACTIVE_STAT  CHARACTER                              
+    )  LANGUAGE DATABASE EXTERNAL NAME "admsalud.SvcIbmPrcDft_Pkg.SvcIbmPrcDft";
+		
+END MODULE;

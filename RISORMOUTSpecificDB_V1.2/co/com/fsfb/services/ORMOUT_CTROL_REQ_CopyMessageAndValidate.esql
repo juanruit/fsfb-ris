@@ -1,0 +1,18 @@
+BROKER SCHEMA co.com.fsfb.services
+
+
+CREATE COMPUTE MODULE ORMOUT_CTROL_REQ_CopyMessageAndValidate
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		--Copiar todo el mensaje
+		SET OutputRoot = InputRoot;
+		
+		-- Igualo identificadores
+		SET OutputRoot.MQMD.CorrelId = InputRoot.MQMD.MsgId;
+		
+		-- Copiar configuraciòn aggregate
+		SET OutputLocalEnvironment = InputLocalEnvironment;
+		
+		RETURN TRUE;
+	END;
+END MODULE;
